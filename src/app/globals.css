@@ -46,7 +46,8 @@ body::before {
 }
 
 .scroll-to-top.visible {
-  @apply opacity-100 visible;
+  @apply opacity-100;
+  visibility: visible;
 }
 
 .scroll-to-top:hover {

@@ -1,4 +1,4 @@
-import { initializeApp, getApps, cert } from 'firebase/app';
+import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 
@@ -20,32 +20,3 @@ export const db = getFirestore(app);
 // Initialize Auth
 export const auth = getAuth(app);
 
-// Admin SDK (for server-side)
-import admin from 'firebase-admin';
-
-let adminApp: admin.app.App;
-
-if (typeof window === 'undefined' && process.env.FIREBASE_PRIVATE_KEY) {
-  const serviceAccount = {
-    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-    privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-  };
-
-  adminApp = getAdminApps().length === 0
-    ? admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
-      })
-    : getAdminApps()[0];
-}
-
-export function getAdminApp() {
-  if (!adminApp) {
-    throw new Error('Firebase Admin not initialized');
-  }
-  return adminApp;
-}
-
-function getAdminApps() {
-  return admin.apps;
-}
