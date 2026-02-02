@@ -1,0 +1,61 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #0f172a;
+  --fg: #f8fafc;
+  --muted: #94a3b8;
+  --panel: #0b1224;
+  --border: #1e293b;
+  --accent: #38bdf8;
+}
+
+body {
+  @apply bg-bg text-fg;
+  @apply min-h-screen;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  line-height: 1.6;
+  position: relative;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url('/img/banner1.jpg');
+  background-size: cover;
+  background-position: center;
+  opacity: 0.08;
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* Scroll-to-top button */
+.scroll-to-top {
+  @apply fixed bottom-8 right-8;
+  @apply w-14 h-14;
+  background: var(--accent);
+  color: #0f172a;
+  @apply border-0 rounded-full cursor-pointer;
+  @apply flex items-center justify-center;
+  @apply opacity-0 invisible;
+  @apply transition-all duration-300;
+  @apply shadow-lg shadow-cyan-500/30;
+  z-index: 100;
+}
+
+.scroll-to-top.visible {
+  @apply opacity-100 visible;
+}
+
+.scroll-to-top:hover {
+  @apply bg-fg;
+  @apply -translate-y-0.5;
+  @apply shadow-xl shadow-cyan-500/40;
+}
+
+.scroll-to-top svg {
+  @apply w-6 h-6;
+  fill: currentColor;
+}
