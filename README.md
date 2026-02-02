@@ -49,15 +49,39 @@ src/
 npm install
 ```
 
-### 2. Configurar Environment Variables
+### 2. Configurar Google OAuth ⭐ REQUERIDO
 
-Copia `.env.example` a `.env.local`:
+Para que el login funcione, necesitas configurar Google OAuth.
 
+**Guía rápida:**
 ```bash
-cp .env.example .env.local
+npm run generate:secret  # Genera NEXTAUTH_SECRET
 ```
 
-Y completa las variables:
+**Luego sigue estos pasos:**
+1. Ve a [Google Cloud Console](https://console.cloud.google.com/)
+2. Crea un proyecto o selecciona uno existente
+3. Configura OAuth consent screen (External)
+4. Crea credenciales OAuth 2.0 (Web application)
+5. Configura las URLs autorizadas (ver guía completa)
+6. Copia Client ID y Client Secret en `.env.local`
+
+**📖 Guía completa:** [PASOS_CONFIGURACION_OAUTH.md](./PASOS_CONFIGURACION_OAUTH.md)
+
+### 3. Configurar Environment Variables
+
+El archivo `.env.local` ya existe con las variables necesarias. Completa:
+
+```env
+# Google OAuth (del paso anterior)
+GOOGLE_CLIENT_ID=tu-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=tu-client-secret
+
+# Otras variables (completar según necesites)
+NEXT_PUBLIC_FIREBASE_API_KEY=
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=
+# ... etc
+```
 
 #### Firebase (obtener de Firebase Console)
 - `NEXT_PUBLIC_FIREBASE_API_KEY`
