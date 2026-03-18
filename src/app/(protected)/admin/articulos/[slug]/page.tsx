@@ -4,6 +4,8 @@ import { authOptions } from '@/auth';
 import { adminDb } from '@/lib/firebase-admin';
 import ArticleEditor from '@/components/admin/ArticleEditor';
 
+export const dynamic = 'force-dynamic';
+
 export default async function EditarArticuloPage({ params }: { params: Promise<{ slug: string }> }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) redirect('/login');

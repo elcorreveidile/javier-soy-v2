@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { adminDb } from '@/lib/firebase-admin';
 
+export const dynamic = 'force-dynamic';
+
 async function getArticulos() {
   try {
     const snap = await adminDb.collection('articles').orderBy('publishedAt', 'desc').get();

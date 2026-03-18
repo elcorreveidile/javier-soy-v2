@@ -1,97 +1,77 @@
-export default function AdminPage() {
+import Link from 'next/link';
+import { getServerSession } from 'next-auth';
+import { redirect } from 'next/navigation';
+import { authOptions } from '@/auth';
+import { adminDb } from '@/lib/firebase-admin';
+import UsersTable from '@/components/admin/UsersTable';
+
+export const dynamic = 'force-dynamic';
+
+export default async function AdminPage() {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.email) redirect('/login');
+
+  const currentUser = await adminDb.collection('users').doc(session.user.email).get();
+  if (currentUser.data()?.role !== 'admin') redirect('/dashboard');
+
+  const snap = await adminDb.collection('users').orderBy('createdAt', 'desc').get();
+  const users = snap.docs.map(doc => doc.data());
+
+  const total = users.length;
+  const active = users.filter(u => u.status === 'active').length;
+  const pending = users.filter(u => u.status === 'pending').length;
+  const admins = users.filter(u => u.role === 'admin').length;
+
   return (
-    <div className="min-h-screen">
-      <div className="max-w-7xl mx-auto px-4 py-8">
+    <div className="min-h-screen py-12 px-4">
+      <div className="max-w-6xl mx-auto">
+
         <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2">
-            ⚙️ Panel de Administración
-          </h1>
-          <p className="text-muted text-lg">
-            Gestiona contenidos y usuarios
-          </p>
+          <h1 className="text-3xl font-bold mb-1">Panel de administración</h1>
+          <p className="text-muted">Gestión de usuarios de javier.soy</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-panel border border-border rounded-2xl p-6">
-            <div className="text-accent text-3xl mb-2">📝</div>
-            <h3 className="text-xl font-semibold mb-1">Artículos</h3>
-            <p className="text-muted text-sm mb-4">Blog posts</p>
-            <div className="text-3xl font-bold">0</div>
-            <p className="text-sm text-muted">artículos publicados</p>
+        {/* Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <div className="bg-panel border border-border rounded-xl p-5">
+            <div className="text-2xl font-bold text-fg">{total}</div>
+            <div className="text-sm text-muted mt-1">Usuarios totales</div>
           </div>
-
-          <div className="bg-panel border border-border rounded-2xl p-6">
-            <div className="text-accent text-3xl mb-2">👥</div>
-            <h3 className="text-xl font-semibold mb-1">Usuarios</h3>
-            <p className="text-muted text-sm mb-4">Registrados</p>
-            <div className="text-3xl font-bold">0</div>
-            <p className="text-sm text-muted">usuarios totales</p>
+          <div className="bg-panel border border-border rounded-xl p-5">
+            <div className="text-2xl font-bold text-green-400">{active}</div>
+            <div className="text-sm text-muted mt-1">Activos</div>
           </div>
-
-          <div className="bg-panel border border-border rounded-2xl p-6">
-            <div className="text-accent text-3xl mb-2">💎</div>
-            <h3 className="text-xl font-semibold mb-1">Clientes</h3>
-            <p className="text-muted text-sm mb-4">Activos</p>
-            <div className="text-3xl font-bold">0</div>
-            <p className="text-sm text-muted">con suscripción</p>
+          <div className="bg-panel border border-border rounded-xl p-5">
+            <div className="text-2xl font-bold text-yellow-400">{pending}</div>
+            <div className="text-sm text-muted mt-1">Pendientes</div>
           </div>
-
-          <div className="bg-panel border border-border rounded-2xl p-6">
-            <div className="text-accent text-3xl mb-2">📦</div>
-            <h3 className="text-xl font-semibold mb-1">Materiales</h3>
-            <p className="text-muted text-sm mb-4">Recursos</p>
-            <div className="text-3xl font-bold">0</div>
-            <p className="text-sm text-muted">materiales subidos</p>
+          <div className="bg-panel border border-border rounded-xl p-5">
+            <div className="text-2xl font-bold text-accent">{admins}</div>
+            <div className="text-sm text-muted mt-1">Administradores</div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-panel border border-border rounded-2xl p-6">
-            <h2 className="text-xl font-semibold mb-4">
-              📝 Artículos Recientes
-            </h2>
-            <div className="text-center py-8">
-              <p className="text-muted">No hay artículos aún</p>
-            </div>
-          </div>
-
-          <div className="bg-panel border border-border rounded-2xl p-6">
-            <h2 className="text-xl font-semibold mb-4">
-              👥 Usuarios Recientes
-            </h2>
-            <div className="text-center py-8">
-              <p className="text-muted">No hay usuarios registrados aún</p>
-            </div>
+        {/* Quick links */}
+        <div className="grid grid-cols-2 gap-4 mb-8">
+          <Link
+            href="/admin/articulos"
+            className="bg-panel border border-border rounded-xl p-5 hover:border-accent transition-colors group"
+          >
+            <div className="text-2xl font-bold text-fg group-hover:text-accent">Artículos</div>
+            <div className="text-sm text-muted mt-1">Crear, editar y publicar posts del blog</div>
+          </Link>
+          <div className="bg-panel border border-border rounded-xl p-5 opacity-40 cursor-not-allowed">
+            <div className="text-2xl font-bold text-fg">Materiales</div>
+            <div className="text-sm text-muted mt-1">Próximamente</div>
           </div>
         </div>
 
-        <div className="mt-8 p-6 bg-bg border border-accent/30 rounded-2xl">
-          <h3 className="text-lg font-semibold mb-4 text-accent">
-            🚀 Acciones Rápidas
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <button className="px-4 py-3 bg-panel border border-border rounded-lg hover:border-accent transition-colors text-left">
-              ➕ Crear nuevo artículo
-            </button>
-            <button className="px-4 py-3 bg-panel border border-border rounded-lg hover:border-accent transition-colors text-left">
-              📤 Subir material
-            </button>
-            <button className="px-4 py-3 bg-panel border border-border rounded-lg hover:border-accent transition-colors text-left">
-              👤 Gestionar usuarios
-            </button>
-          </div>
+        {/* Users table */}
+        <div className="bg-panel border border-border rounded-2xl p-6">
+          <h2 className="text-lg font-semibold text-fg mb-6">Usuarios registrados</h2>
+          <UsersTable initialUsers={users as any} />
         </div>
 
-        <div className="mt-8 flex justify-end">
-          <form action="/api/auth/signout" method="POST">
-            <button
-              type="submit"
-              className="px-4 py-2 text-sm text-muted hover:text-accent transition-colors"
-            >
-              Cerrar sesión
-            </button>
-          </form>
-        </div>
       </div>
     </div>
   );

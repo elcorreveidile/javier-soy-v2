@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { adminDb } from '@/lib/firebase-admin';
 
-export const revalidate = 60;
+export const dynamic = 'force-dynamic';
 
 const CATEGORIAS: Record<string, { label: string; tags: string[] }> = {
   'educacion':              { label: 'Educación',             tags: ['ELE', 'Educación', 'Prompts'] },
@@ -11,16 +11,17 @@ const CATEGORIAS: Record<string, { label: string; tags: string[] }> = {
   'prompts':                { label: 'Prompts',               tags: ['Prompts'] },
 };
 
-export async function generateStaticParams() {
-  return Object.keys(CATEGORIAS).map(categoria => ({ categoria }));
-}
-
 export default async function CategoriaPage({ params }: { params: Promise<{ categoria: string }> }) {
   const { categoria } = await params;
   const cat = CATEGORIAS[categoria];
   if (!cat) notFound();
 
-  const snap = await adminDb.collection('articles').orderBy('publishedAt', 'desc').get();
+  let snap;
+  try {
+    snap = await adminDb.collection('articles').orderBy('publishedAt', 'desc').get();
+  } catch {
+    snap = { docs: [] };
+  }
   const articles = snap.docs
     .map(d => ({ slug: d.id, ...d.data() } as {
       slug: string; title: string; excerpt: string;

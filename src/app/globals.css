@@ -60,3 +60,53 @@ body::before {
   @apply w-6 h-6;
   fill: currentColor;
 }
+
+/* Markdown content in articles */
+.prose-custom h2 {
+  @apply text-2xl font-bold text-fg mt-8 mb-4;
+}
+.prose-custom h3 {
+  @apply text-xl font-semibold text-fg mt-6 mb-3;
+}
+.prose-custom p {
+  @apply text-muted leading-relaxed mb-4;
+}
+.prose-custom ul {
+  @apply list-disc list-inside space-y-2 mb-4 text-muted;
+}
+.prose-custom ol {
+  @apply list-decimal list-inside space-y-2 mb-4 text-muted;
+}
+.prose-custom li {
+  @apply leading-relaxed;
+}
+.prose-custom strong {
+  @apply text-fg font-semibold;
+}
+.prose-custom blockquote {
+  @apply border-l-4 border-accent pl-4 italic text-muted my-4;
+}
+.prose-custom code {
+  @apply bg-bg px-1.5 py-0.5 rounded text-accent text-sm font-mono;
+}
+.prose-custom pre {
+  @apply bg-bg border border-border rounded-lg p-4 overflow-x-auto mb-4;
+}
+.prose-custom pre code {
+  @apply bg-transparent px-0 py-0;
+}
+.prose-custom table {
+  @apply w-full border-collapse mb-4 text-sm;
+}
+.prose-custom th {
+  @apply border border-border px-3 py-2 text-left text-fg font-semibold bg-bg;
+}
+.prose-custom td {
+  @apply border border-border px-3 py-2 text-muted;
+}
+.prose-custom a {
+  @apply text-accent hover:underline;
+}
+.prose-custom hr {
+  @apply border-border my-8;
+}

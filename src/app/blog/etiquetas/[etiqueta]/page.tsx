@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { adminDb } from '@/lib/firebase-admin';
 
-export const revalidate = 60;
+export const dynamic = 'force-dynamic';
 
 const ETIQUETAS: Record<string, string> = {
   'agentes-ia':  'Agentes IA',
@@ -20,16 +20,17 @@ const ETIQUETAS: Record<string, string> = {
   'zai':         'z.ai',
 };
 
-export async function generateStaticParams() {
-  return Object.keys(ETIQUETAS).map(etiqueta => ({ etiqueta }));
-}
-
 export default async function EtiquetaPage({ params }: { params: Promise<{ etiqueta: string }> }) {
   const { etiqueta } = await params;
   const label = ETIQUETAS[etiqueta];
   if (!label) notFound();
 
-  const snap = await adminDb.collection('articles').orderBy('publishedAt', 'desc').get();
+  let snap;
+  try {
+    snap = await adminDb.collection('articles').orderBy('publishedAt', 'desc').get();
+  } catch {
+    snap = { docs: [] };
+  }
   const articles = snap.docs
     .map(d => ({ slug: d.id, ...d.data() } as {
       slug: string; title: string; excerpt: string;

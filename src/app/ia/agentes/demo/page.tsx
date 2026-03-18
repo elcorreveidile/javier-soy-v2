@@ -5,6 +5,8 @@ import { authOptions } from '@/auth';
 import { adminDb } from '@/lib/firebase-admin';
 import DemoContenidoForm from '@/components/agentes/DemoContenidoForm';
 
+export const dynamic = 'force-dynamic';
+
 export default async function AgenteDemoPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) redirect('/login?callbackUrl=/ia/agentes/demo');
