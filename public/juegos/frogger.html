@@ -112,11 +112,11 @@ const LANES_CONFIG = [
   { row: 6, type: LANE_SAFE },  // Median
 
   // River lanes (rows 1-5)
-  { row: 5, type: LANE_RIVER, speed: 1.5, count: 3, width: 3, dir: 1, type: 'log' },
-  { row: 4, type: LANE_RIVER, speed: -2, count: 2, width: 4, dir: -1, type: 'log' },
-  { row: 3, type: LANE_RIVER, speed: 2.5, count: 3, width: 2, dir: 1, type: 'turtle' },
-  { row: 2, type: LANE_RIVER, speed: -1.8, count: 3, width: 3, dir: -1, type: 'log' },
-  { row: 1, type: LANE_RIVER, speed: 2, count: 2, width: 4, dir: 1, type: 'turtle' },
+  { row: 5, type: LANE_RIVER, speed: 1.5, count: 3, width: 3, dir: 1, objectType: 'log' },
+  { row: 4, type: LANE_RIVER, speed: -2, count: 2, width: 4, dir: -1, objectType: 'log' },
+  { row: 3, type: LANE_RIVER, speed: 2.5, count: 3, width: 2, dir: 1, objectType: 'turtle' },
+  { row: 2, type: LANE_RIVER, speed: -1.8, count: 3, width: 3, dir: -1, objectType: 'log' },
+  { row: 1, type: LANE_RIVER, speed: 2, count: 2, width: 4, dir: 1, objectType: 'turtle' },
 
   { row: 0, type: LANE_SAFE },  // Goal
 ];
@@ -165,7 +165,7 @@ function init() {
         speed: lane.speed * (1 + (level - 1) * 0.08)
       };
 
-      if (lane.type === 'log') {
+      if (lane.objectType === 'log') {
         logs.push(obj);
       } else {
         turtles.push({ ...obj, diving: false, diveTimer: 0 });
