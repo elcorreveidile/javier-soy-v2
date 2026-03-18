@@ -1,9 +1,8 @@
 import NextAuth from 'next-auth';
-import Google from 'next-auth/providers/google';
 import { authOptions } from '@/auth';
 
-export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
-const { handlers } = NextAuth(authOptions);
+const handler = NextAuth(authOptions);
 
-export const { GET, POST } = handlers;
+export { handler as GET, handler as POST };
