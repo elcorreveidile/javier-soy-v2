@@ -4,6 +4,8 @@ import { useSession, signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
+export const dynamic = 'force-dynamic';
+
 export default function PerfilPage() {
   const { data: session, status, update } = useSession();
   const router = useRouter();
