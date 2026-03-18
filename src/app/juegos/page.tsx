@@ -27,9 +27,20 @@ export default function JuegosPage() {
         <div className="mb-10">
           <p className="text-accent text-sm font-medium mb-3 uppercase tracking-wider">Archivo · Nostalgia</p>
           <h1 className="text-4xl font-bold mb-3">Juegos vintage</h1>
-          <p className="text-muted text-lg">
-            Los que jugaba de niño. Siguen siendo los mejores.
-          </p>
+          <div className="space-y-3 text-muted text-lg max-w-2xl mb-6">
+            <p>
+              Nací en 1969. Cuando los marcianitos invadieron las máquinas recreativas de los bares de Estepona, yo tenía nueve años y ya me gastaba las monedas en ellos.
+            </p>
+            <p>
+              En aquella época no había consolas en casa, ni ordenadores personales, ni nada que se le pareciera. Los videojuegos vivían en salones oscuros que olían a tabaco y a fritanga, y para jugar hacía falta una moneda de cinco duros y cierta habilidad para escabullirse de los mayores.
+            </p>
+            <p>
+              El Tetris llegó después, en los ochenta, cuando ya era adolescente. Lo descubrí en un Game Boy prestado. Nunca fue mío, pero me quedé con la lógica: encajar lo que te cae, sin quejarte, lo más rápido posible.
+            </p>
+            <p className="text-base italic text-muted/70">
+              Estos juegos los he reconstruido ahora, con IA, para recordar lo que sentía entonces. Son míos de otra manera.
+            </p>
+          </div>
         </div>
 
         <div className="grid sm:grid-cols-2 gap-6">
