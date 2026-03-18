@@ -13,8 +13,13 @@ export default async function DashboardPage() {
   }
 
   // Read profileComplete directly from Firestore — bypasses JWT cache
-  const doc = await adminDb.collection('users').doc(session.user.email).get();
-  const userData = doc.data();
+  let userData: Record<string, any> | undefined;
+  try {
+    const doc = await adminDb.collection('users').doc(session.user.email).get();
+    userData = doc.data();
+  } catch {
+    redirect('/perfil');
+  }
 
   if (!userData?.profileComplete) {
     redirect('/perfil');
