@@ -17,6 +17,22 @@ const juegos = [
     controles: '← → mover · Espacio disparar · P pausa · R reiniciar',
     año: '1978',
   },
+  {
+    slug: 'pacman',
+    nombre: 'Pac-Man',
+    desc: 'El come-cocos clásico. Huye de los fantasmas y come todos los puntos.',
+    icon: '🟡',
+    controles: '← → ↑ ↓ mover · P pausa · R reiniciar',
+    año: '1980',
+  },
+  {
+    slug: 'frogger',
+    nombre: 'Frogger',
+    desc: 'La rana que cruza la carretera. Esquiva coches y cruza el río sobre troncos.',
+    icon: '🐸',
+    controles: '← → ↑ ↓ mover · P pausa · R reiniciar',
+    año: '1981',
+  },
 ];
 
 export default function JuegosPage() {
