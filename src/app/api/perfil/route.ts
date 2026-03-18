@@ -14,15 +14,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Faltan campos' }, { status: 400 });
   }
 
-  await adminDb.collection('users').doc(session.user.email).update({
-    nombre,
-    profesion,
-    institucion: institucion || '',
-    interes,
-    profileComplete: true,
-    status: 'active',
-    updatedAt: new Date().toISOString(),
-  });
+  try {
+    await adminDb.collection('users').doc(session.user.email).set({
+      email: session.user.email,
+      nombre,
+      profesion,
+      institucion: institucion || '',
+      interes,
+      profileComplete: true,
+      status: 'active',
+      role: 'client',
+      updatedAt: new Date().toISOString(),
+    }, { merge: true });
+  } catch (e) {
+    console.error('Error guardando perfil:', e);
+    return NextResponse.json({ error: 'Error guardando perfil' }, { status: 500 });
+  }
 
   return NextResponse.json({ ok: true });
 }
