@@ -35,7 +35,7 @@ export default function JuegosPage() {
               En aquella época no había consolas en casa, ni ordenadores personales, ni nada que se le pareciera. Los videojuegos vivían en salones oscuros que olían a tabaco y a fritanga, y para jugar hacía falta una moneda de cinco duros y cierta habilidad para escabullirse de los mayores.
             </p>
             <p>
-              El Tetris llegó después, en los ochenta, cuando ya era adolescente. Lo descubrí en un Game Boy prestado. Nunca fue mío, pero me quedé con la lógica: encajar lo que te cae, sin quejarte, lo más rápido posible.
+              El Tetris llegó después, en los ochenta, cuando ya era adolescente. También en los salones recreativos, también con monedas, también de pie frente a una pantalla enorme que nadie tenía en casa. Me quedé con la lógica: encajar lo que te cae, sin quejarte, lo más rápido posible.
             </p>
             <p className="text-base italic text-muted/70">
               Estos juegos los he reconstruido ahora, con IA, para recordar lo que sentía entonces. Son míos de otra manera.
