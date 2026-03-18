@@ -95,6 +95,21 @@ export default async function DashboardPage() {
             </div>
           </div>
 
+          {role === 'admin' && (
+            <div className="bg-accent/10 border border-accent rounded-xl p-6 mb-6">
+              <h3 className="font-semibold text-fg mb-1">Panel de administración</h3>
+              <p className="text-sm text-muted mb-4">Gestiona usuarios, artículos y contenido.</p>
+              <div className="flex gap-3">
+                <a href="/admin" className="px-4 py-2 bg-accent text-bg text-sm font-semibold rounded-full hover:opacity-90 transition">
+                  Ir al panel →
+                </a>
+                <a href="/admin/articulos/nuevo" className="px-4 py-2 border border-accent text-accent text-sm rounded-full hover:bg-accent/10 transition">
+                  Nuevo artículo
+                </a>
+              </div>
+            </div>
+          )}
+
           <div className="bg-bg border border-border rounded-xl p-6">
             <h3 className="font-semibold text-fg mb-4">Materiales y Recursos</h3>
             <p className="text-muted text-sm mb-4">
