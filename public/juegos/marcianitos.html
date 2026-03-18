@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Marcianitos</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; font-family: monospace; color: #fff; }
+  canvas { border: 1px solid #333; display: block; }
+  #hud { width: 600px; display: flex; justify-content: space-between; padding: 8px 4px; font-size: 14px; color: #0f0; letter-spacing: 2px; }
+  #powerbar { width: 600px; min-height: 20px; padding: 2px 4px; font-size: 12px; color: #fa0; letter-spacing: 1px; }
+  #msg { position: absolute; font-size: 28px; color: #ff0; text-align: center; text-shadow: 0 0 10px #ff0; display: none; }
+  #floaty { position: absolute; pointer-events: none; }
+</style>
+</head>
+<body>
+<div id="hud"><span>PUNTOS: <span id="score">0</span></span><span>VIDAS: <span id="lives">3</span></span><span>NIVEL: <span id="level">1</span></span></div>
+<div id="powerbar">&nbsp;</div>
+<canvas id="c" width="600" height="480"></canvas>
+<div style="color:#555;font-size:12px;margin-top:8px;">← → MOVER &nbsp;|&nbsp; ESPACIO DISPARAR &nbsp;|&nbsp; P PAUSA &nbsp;|&nbsp; R REINICIAR</div>
+<div id="msg"></div>
+
+<script>
+const c = document.getElementById('c');
+const ctx = c.getContext('2d');
+const W = 600, H = 480;
+
+let score = 0, lives = 3, level = 1, paused = false, gameOver = false;
+let playerBullets = [], enemyBullets = [], explosions = [], drops = [], floatTexts = [];
+let keys = {};
+let rapidFire = 0, tripleShot = 0, shield = false, shieldHits = 0;
+let lastShot = 0;
+
+// Player
+const player = { x: W/2, y: H-40, w: 40, h: 20, speed: 5 };
+
+// UFO
+const ufo = { x: -60, y: 28, w: 52, h: 20, active: false, dir: 1, timer: 0 };
+let ufoInterval = 600;
+
+// Enemies
+let enemies = [];
+let eDir = 1, eSpeed = 0.5;
+
+function initEnemies() {
+  enemies = [];
+  const rows = 4, cols = 10;
+  for (let r = 0; r < rows; r++) {
+    for (let c2 = 0; c2 < cols; c2++) {
+      enemies.push({ x: 60 + c2*50, y: 50 + r*45, w: 32, h: 24,
+        alive: true, type: r, animFrame: 0, animTimer: 0 });
+    }
+  }
+}
+
+// Bunkers
+let bunkers = [];
+function initBunkers() {
+  bunkers = [];
+  for (let bxi of [80, 210, 340, 470]) {
+    const pixels = [];
+    for (let py = 0; py < 5; py++) {
+      for (let px = 0; px < 8; px++) {
+        if (py === 4 && (px < 2 || px > 5)) continue;
+        if (py === 3 && (px === 2 || px === 5)) continue;
+        pixels.push({ x: bxi + px*9, y: H-110 + py*9, alive: true });
+      }
+    }
+    bunkers.push(pixels);
+  }
+}
+
+initEnemies(); initBunkers();
+
+// --- DRAW ---
+function drawPlayer() {
+  if (shield) {
+    ctx.strokeStyle = `rgba(0,200,255,${0.4 + Math.sin(Date.now()/100)*0.3})`;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.ellipse(player.x, player.y+10, player.w/2+8, player.h+8, 0, 0, Math.PI*2);
+    ctx.stroke();
+  }
+  ctx.fillStyle = rapidFire > 0 ? '#ff0' : tripleShot > 0 ? '#0ff' : '#0f0';
+  ctx.fillRect(player.x-player.w/2+8, player.y+8, player.w-16, player.h-8);
+  ctx.fillRect(player.x-3, player.y, 6, 12);
+  ctx.fillRect(player.x-player.w/2, player.y+12, player.w, 8);
+}
+
+function getEnemyColor(type) { return ['#f55','#fa0','#0af','#aff'][type]||'#fff'; }
+
+function drawEnemy(e) {
+  if (!e.alive) return;
+  ctx.fillStyle = getEnemyColor(e.type);
+  const f = e.animFrame;
+  if (e.type === 0) {
+    ctx.fillRect(e.x+4,e.y+2,e.w-8,6); ctx.fillRect(e.x+2,e.y+8,e.w-4,8);
+    ctx.fillRect(e.x,e.y+4,4,6); ctx.fillRect(e.x+e.w-4,e.y+4,4,6);
+    ctx.fillRect(e.x+6,e.y+16,4,6); ctx.fillRect(e.x+e.w-10,e.y+16,4,6);
+    if(f===0){ctx.fillRect(e.x,e.y+12,4,4);ctx.fillRect(e.x+e.w-4,e.y+12,4,4);}
+    else{ctx.fillRect(e.x+4,e.y+18,4,4);ctx.fillRect(e.x+e.w-8,e.y+18,4,4);}
+  } else if (e.type === 1) {
+    ctx.fillRect(e.x+6,e.y,e.w-12,6); ctx.fillRect(e.x+2,e.y+6,e.w-4,8);
+    ctx.fillRect(e.x,e.y+10,4,6); ctx.fillRect(e.x+e.w-4,e.y+10,4,6);
+    ctx.fillRect(e.x+4,e.y+14,6,6); ctx.fillRect(e.x+e.w-10,e.y+14,6,6);
+    if(f===0){ctx.fillRect(e.x+2,e.y+18,4,4);ctx.fillRect(e.x+e.w-6,e.y+18,4,4);}
+    else{ctx.fillRect(e.x,e.y+16,4,4);ctx.fillRect(e.x+e.w-4,e.y+16,4,4);}
+  } else if (e.type === 2) {
+    ctx.fillRect(e.x+8,e.y,e.w-16,8); ctx.fillRect(e.x+2,e.y+8,e.w-4,10);
+    ctx.fillRect(e.x,e.y+6,4,8); ctx.fillRect(e.x+e.w-4,e.y+6,4,8);
+    if(f===0){ctx.fillRect(e.x+2,e.y+18,4,4);ctx.fillRect(e.x+e.w-6,e.y+18,4,4);}
+    else{ctx.fillRect(e.x,e.y+18,4,4);ctx.fillRect(e.x+e.w-4,e.y+18,4,4);}
+  } else {
+    ctx.fillRect(e.x+6,e.y+2,e.w-12,6); ctx.fillRect(e.x+2,e.y+8,e.w-4,8);
+    ctx.fillRect(e.x+4,e.y+16,4,4); ctx.fillRect(e.x+12,e.y+16,4,4);
+    ctx.fillRect(e.x+e.w-8,e.y+16,4,4); ctx.fillRect(e.x+e.w-16,e.y+16,4,4);
+  }
+}
+
+function drawUFO() {
+  if (!ufo.active) return;
+  // Flashing red saucer
+  const t = Date.now();
+  ctx.fillStyle = `hsl(${(t/20)%360},100%,60%)`;
+  ctx.beginPath();
+  ctx.ellipse(ufo.x+ufo.w/2, ufo.y+12, ufo.w/2, 8, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.ellipse(ufo.x+ufo.w/2, ufo.y+8, ufo.w/4, 5, 0, 0, Math.PI*2);
+  ctx.fill();
+  // windows
+  ctx.fillStyle = '#0ff';
+  ctx.fillRect(ufo.x+8, ufo.y+10, 6, 4);
+  ctx.fillRect(ufo.x+22, ufo.y+10, 6, 4);
+  ctx.fillRect(ufo.x+36, ufo.y+10, 6, 4);
+}
+
+function drawDrop(d) {
+  const icons = { rapid: '⚡', triple: '✦', shield: '🛡', life: '♥', bomb: '💣' };
+  ctx.font = '18px serif';
+  ctx.textAlign = 'center';
+  ctx.globalAlpha = 0.9;
+  ctx.fillText(icons[d.type] || '?', d.x, d.y);
+  ctx.globalAlpha = 1;
+  ctx.textAlign = 'left';
+}
+
+function drawFloatText(ft) {
+  ctx.globalAlpha = ft.life / 40;
+  ctx.fillStyle = ft.color;
+  ctx.font = 'bold 16px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(ft.text, ft.x, ft.y);
+  ctx.globalAlpha = 1;
+  ctx.textAlign = 'left';
+}
+
+function drawBunkers() {
+  ctx.fillStyle = '#0d0';
+  for (let b of bunkers) for (let p of b) if (p.alive) ctx.fillRect(p.x,p.y,8,8);
+}
+
+function addFloat(text, x, y, color) {
+  floatTexts.push({ text, x, y, color: color||'#ff0', life: 40 });
+}
+
+// --- SHOOT ---
+function shoot() {
+  const now = Date.now();
+  const cooldown = rapidFire > 0 ? 120 : 320;
+  if (now - lastShot < cooldown) return;
+  lastShot = now;
+  if (tripleShot > 0) {
+    playerBullets.push({ x: player.x-12, y: player.y, angle: -0.15 });
+    playerBullets.push({ x: player.x, y: player.y, angle: 0 });
+    playerBullets.push({ x: player.x+12, y: player.y, angle: 0.15 });
+  } else {
+    playerBullets.push({ x: player.x, y: player.y, angle: 0 });
+  }
+}
+
+let enemyShootTimer = 0;
+function enemyShoot() {
+  const alive = enemies.filter(e=>e.alive);
+  if (!alive.length) return;
+  const cols = {};
+  for (let e of alive) { const col=Math.round(e.x/50); if (!cols[col]||e.y>cols[col].y) cols[col]=e; }
+  const shooters = Object.values(cols);
+  const shooter = shooters[Math.floor(Math.random()*shooters.length)];
+  if (enemyBullets.length < 3+level) enemyBullets.push({ x:shooter.x+shooter.w/2, y:shooter.y+shooter.h });
+}
+
+function checkBunkerHit(bx, by, remove) {
+  for (let b of bunkers) for (let p of b) {
+    if (p.alive && bx>p.x && bx<p.x+8 && by>p.y && by<p.y+8) { if(remove) p.alive=false; return true; }
+  }
+  return false;
+}
+
+function applyPower(type, x, y) {
+  if (type === 'rapid') { rapidFire = 600; addFloat('⚡ DISPARO RÁPIDO', x, y, '#ff0'); }
+  else if (type === 'triple') { tripleShot = 500; addFloat('✦ TRIPLE DISPARO', x, y, '#0ff'); }
+  else if (type === 'shield') { shield = true; shieldHits = 3; addFloat('🛡 ESCUDO x3', x, y, '#0af'); }
+  else if (type === 'life') { lives++; document.getElementById('lives').textContent=lives; addFloat('♥ VIDA EXTRA', x, y, '#f55'); }
+  else if (type === 'bomb') {
+    let killed = 0;
+    for (let e of enemies) { if (e.alive) { e.alive=false; killed++; explosions.push({x:e.x+e.w/2,y:e.y+e.h/2,life:25,size:8}); } }
+    score += killed * 5;
+    document.getElementById('score').textContent = score;
+    addFloat('💣 BOMBA! +' + killed*5, x, y, '#fa0');
+  }
+  updatePowerBar();
+}
+
+function updatePowerBar() {
+  const parts = [];
+  if (rapidFire > 0) parts.push('⚡ RÁPIDO');
+  if (tripleShot > 0) parts.push('✦ TRIPLE');
+  if (shield) parts.push('🛡 ESCUDO');
+  document.getElementById('powerbar').textContent = parts.length ? '  ACTIVO: ' + parts.join('  ') : ' ';
+}
+
+// --- UPDATE ---
+function update() {
+  if (paused || gameOver) return;
+
+  // Move player
+  if (keys['ArrowLeft'] && player.x-player.w/2 > 0) player.x -= player.speed;
+  if (keys['ArrowRight'] && player.x+player.w/2 < W) player.x += player.speed;
+  if (keys['Space']) shoot();
+
+  // Power timers
+  if (rapidFire > 0) { rapidFire--; if (rapidFire===0) updatePowerBar(); }
+  if (tripleShot > 0) { tripleShot--; if (tripleShot===0) updatePowerBar(); }
+
+  // UFO
+  ufo.timer++;
+  if (!ufo.active && ufo.timer > ufoInterval) {
+    ufo.active = true;
+    ufo.dir = Math.random() > 0.5 ? 1 : -1;
+    ufo.x = ufo.dir > 0 ? -ufo.w : W;
+    ufo.timer = 0;
+    ufoInterval = 400 + Math.floor(Math.random()*400);
+  }
+  if (ufo.active) {
+    ufo.x += ufo.dir * (2 + level*0.3);
+    if (ufo.x > W+ufo.w || ufo.x < -ufo.w*2) ufo.active = false;
+  }
+
+  // Player bullets
+  playerBullets = playerBullets.filter(b => {
+    b.y -= 9;
+    if (b.angle) b.x += Math.sin(b.angle) * 4;
+    if (checkBunkerHit(b.x, b.y, true)) return false;
+
+    // Hit UFO
+    if (ufo.active && b.x>ufo.x && b.x<ufo.x+ufo.w && b.y>ufo.y && b.y<ufo.y+ufo.h) {
+      const bonus = [50,100,150,200,300][Math.floor(Math.random()*5)];
+      score += bonus;
+      document.getElementById('score').textContent = score;
+      explosions.push({x:ufo.x+ufo.w/2, y:ufo.y+10, life:30, size:16});
+      addFloat('🛸 +'+bonus, ufo.x+ufo.w/2, ufo.y, '#f0f');
+      ufo.active = false;
+      return false;
+    }
+
+    // Hit enemy
+    for (let e of enemies) {
+      if (!e.alive) continue;
+      if (b.x>e.x && b.x<e.x+e.w && b.y>e.y && b.y<e.y+e.h) {
+        e.alive = false;
+        const pts = [30,20,15,10][e.type]||10;
+        score += pts;
+        document.getElementById('score').textContent = score;
+        explosions.push({x:e.x+e.w/2, y:e.y+e.h/2, life:20, size:e.type*4});
+        addFloat('+'+pts, e.x+e.w/2, e.y, getEnemyColor(e.type));
+        // Drop power-up (20% chance)
+        if (Math.random() < 0.20) {
+          const types = ['rapid','triple','shield','life','bomb'];
+          const weights = [30,25,20,15,10];
+          let r = Math.random()*100, pick = 'rapid';
+          let acc = 0;
+          for (let i=0; i<types.length; i++) { acc+=weights[i]; if(r<acc){pick=types[i];break;} }
+          drops.push({ x:e.x+e.w/2, y:e.y+e.h, type:pick });
+        }
+        return false;
+      }
+    }
+    return b.y > 0;
+  });
+
+  // Enemy bullets
+  enemyBullets = enemyBullets.filter(b => {
+    b.y += 4 + level*0.3;
+    if (checkBunkerHit(b.x, b.y, true)) return false;
+    if (b.x>player.x-player.w/2 && b.x<player.x+player.w/2 &&
+        b.y>player.y && b.y<player.y+player.h) {
+      if (shield) {
+        shieldHits--;
+        explosions.push({x:b.x,y:b.y,life:15,size:4});
+        addFloat('🛡 BLOQUEADO', player.x, player.y-20, '#0af');
+        if (shieldHits <= 0) { shield=false; updatePowerBar(); }
+      } else {
+        lives--;
+        document.getElementById('lives').textContent=lives;
+        explosions.push({x:player.x,y:player.y,life:30,size:20});
+        if(lives<=0){ gameOver=true; showMsg('GAME OVER — R para reiniciar','#f00'); }
+      }
+      return false;
+    }
+    return b.y < H;
+  });
+
+  // Drops falling
+  drops = drops.filter(d => {
+    d.y += 2;
+    if (d.x>player.x-player.w/2 && d.x<player.x+player.w/2 &&
+        d.y>player.y && d.y<player.y+player.h+20) {
+      applyPower(d.type, d.x, d.y);
+      return false;
+    }
+    return d.y < H;
+  });
+
+  // Float texts
+  floatTexts = floatTexts.filter(ft => { ft.y -= 0.8; ft.life--; return ft.life>0; });
+
+  // Move enemies
+  const alive = enemies.filter(e=>e.alive);
+  if (!alive.length) {
+    level++;
+    document.getElementById('level').textContent=level;
+    eSpeed = 0.5 + level*0.2;
+    rapidFire=0; tripleShot=0; shield=false;
+    updatePowerBar();
+    initEnemies(); initBunkers();
+    showMsg('¡NIVEL '+level+'!','#ff0',1800);
+    return;
+  }
+  for (let e of alive) if (e.y+e.h > H-80) { gameOver=true; showMsg('GAME OVER — R para reiniciar','#f00'); return; }
+
+  let minX=Math.min(...alive.map(e=>e.x)), maxX=Math.max(...alive.map(e=>e.x+e.w));
+  if (maxX>=W-10||minX<=10) { eDir*=-1; for(let e of enemies) e.y+=12; }
+  for (let e of enemies) {
+    if (!e.alive) continue;
+    e.x += eDir*(eSpeed+(40-alive.length)*0.04);
+    e.animTimer++;
+    if(e.animTimer>30){e.animFrame=1-e.animFrame;e.animTimer=0;}
+  }
+
+  enemyShootTimer++;
+  if(enemyShootTimer>Math.max(18,60-level*8-(40-alive.length))){
+    enemyShoot(); enemyShootTimer=0;
+  }
+  explosions=explosions.filter(ex=>{ex.life--;return ex.life>0;});
+}
+
+function draw() {
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#fff';
+  for(let i=0;i<80;i++){
+    ctx.globalAlpha=0.2+(i%4)*0.1;
+    ctx.fillRect((i*137+23)%W,(i*97+11)%(H-20),1,1);
+  }
+  ctx.globalAlpha=1;
+  drawBunkers();
+  ctx.fillStyle='#0f0'; ctx.fillRect(0,H-12,W,2);
+  drawPlayer();
+  for(let e of enemies) drawEnemy(e);
+  drawUFO();
+  for(let b of playerBullets){
+    ctx.fillStyle=tripleShot>0?'#0ff':rapidFire>0?'#ff0':'#0f0';
+    ctx.fillRect(b.x-2,b.y-8,4,12);
+  }
+  for(let b of enemyBullets){ctx.fillStyle='#f44';ctx.fillRect(b.x-2,b.y-8,4,12);}
+  for(let d of drops) drawDrop(d);
+  for(let ex of explosions){
+    ctx.fillStyle=`rgba(255,180,0,${ex.life/30})`;
+    ctx.font=`${14+ex.size}px monospace`;
+    ctx.textAlign='center';
+    ctx.fillText('✸',ex.x-8,ex.y+8);
+    ctx.textAlign='left';
+  }
+  for(let ft of floatTexts) drawFloatText(ft);
+  if(paused&&!gameOver){
+    ctx.fillStyle='rgba(0,0,0,0.5)';ctx.fillRect(0,0,W,H);
+    ctx.fillStyle='#ff0';ctx.font='32px monospace';ctx.textAlign='center';
+    ctx.fillText('PAUSA',W/2,H/2);ctx.textAlign='left';
+  }
+}
+
+function showMsg(text,color,duration){
+  const el=document.getElementById('msg');
+  el.textContent=text;el.style.color=color;el.style.display='block';
+  if(duration) setTimeout(()=>el.style.display='none',duration);
+}
+
+document.addEventListener('keydown',e=>{
+  keys[e.code]=true;
+  if(e.code==='Space') e.preventDefault();
+  if(e.code==='KeyP') paused=!paused;
+  if(e.code==='KeyR'&&gameOver){
+    score=0;lives=3;level=1;eSpeed=0.5;eDir=1;
+    playerBullets=[];enemyBullets=[];explosions=[];drops=[];floatTexts=[];
+    rapidFire=0;tripleShot=0;shield=false;player.x=W/2;
+    document.getElementById('score').textContent=0;
+    document.getElementById('lives').textContent=3;
+    document.getElementById('level').textContent=1;
+    updatePowerBar();
+    initEnemies();initBunkers();
+    gameOver=false;
+    document.getElementById('msg').style.display='none';
+  }
+});
+document.addEventListener('keyup',e=>keys[e.code]=false);
+
+function loop(){update();draw();requestAnimationFrame(loop);}
+loop();
+</script>
+</body>
+</html>

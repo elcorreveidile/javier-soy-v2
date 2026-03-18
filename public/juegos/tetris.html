@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Tetris</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0a0a0a; display: flex; align-items: center; justify-content: center; height: 100vh; font-family: monospace; color: #fff; gap: 24px; }
+  canvas { border: 1px solid #222; display: block; }
+  #panel { width: 160px; display: flex; flex-direction: column; gap: 16px; }
+  .box { border: 1px solid #333; padding: 10px; }
+  .label { color: #555; font-size: 11px; letter-spacing: 2px; margin-bottom: 6px; }
+  .val { font-size: 22px; color: #0f0; }
+  #nextCanvas { display: block; margin: 0 auto; }
+  #powerlist { font-size: 12px; color: #fa0; min-height: 60px; }
+  #controls { color: #444; font-size: 11px; line-height: 1.8; }
+  #msg { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    font-size: 32px; color: #ff0; text-align: center; text-shadow: 0 0 12px #ff0;
+    display: none; pointer-events: none; }
+</style>
+</head>
+<body>
+
+<div id="panel">
+  <div class="box">
+    <div class="label">PUNTOS</div>
+    <div class="val" id="score">0</div>
+  </div>
+  <div class="box">
+    <div class="label">NIVEL</div>
+    <div class="val" id="level">1</div>
+  </div>
+  <div class="box">
+    <div class="label">LÍNEAS</div>
+    <div class="val" id="lines">0</div>
+  </div>
+  <div class="box">
+    <div class="label">SIGUIENTE</div>
+    <canvas id="nextCanvas" width="80" height="80"></canvas>
+  </div>
+  <div class="box">
+    <div class="label">PODERES</div>
+    <div id="powerlist">—</div>
+  </div>
+</div>
+
+<canvas id="c" width="300" height="600"></canvas>
+
+<div id="panel">
+  <div class="box" id="controls">
+    <div class="label">CONTROLES</div>
+    ← → MOVER<br>
+    ↑ ROTAR<br>
+    ↓ BAJAR<br>
+    ESPACIO CAÍDA<br>
+    P PAUSA<br>
+    R REINICIAR
+  </div>
+  <div class="box">
+    <div class="label">PODERES</div>
+    <div style="font-size:12px;color:#777;line-height:1.9">
+      ⚡ Caída lenta<br>
+      💣 Bomba fila<br>
+      🔮 Pieza siguiente<br>
+      ✨ Línea bonus<br>
+      🧊 Congelar<br>
+      ⭐ Puntos x2
+    </div>
+  </div>
+</div>
+
+<div id="msg"></div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const nextCanvas = document.getElementById('nextCanvas');
+const nctx = nextCanvas.getContext('2d');
+
+const COLS = 10, ROWS = 20, BS = 30; // block size
+
+// Tetromino shapes
+const SHAPES = [
+  [[1,1,1,1]],                          // I
+  [[1,1],[1,1]],                         // O
+  [[0,1,0],[1,1,1]],                     // T
+  [[1,0],[1,0],[1,1]],                   // L
+  [[0,1],[0,1],[1,1]],                   // J
+  [[0,1,1],[1,1,0]],                     // S
+  [[1,1,0],[0,1,1]],                     // Z
+];
+
+const COLORS = ['#0ff','#ff0','#a0f','#f80','#00f','#0f0','#f00'];
+const NAMES  = ['I','O','T','L','J','S','Z'];
+
+let board, score, level, lines, paused, gameOver;
+let current, next, floatTexts, powerDrops;
+let dropInterval, dropTimer;
+let slowTimer = 0, freezeTimer = 0, doubleTimer = 0;
+let activePowers = [];
+
+function init() {
+  board = Array.from({length: ROWS}, () => Array(COLS).fill(0));
+  score = 0; level = 1; lines = 0; paused = false; gameOver = false;
+  floatTexts = []; powerDrops = [];
+  dropInterval = 800; dropTimer = 0;
+  slowTimer = 0; freezeTimer = 0; doubleTimer = 0;
+  activePowers = [];
+  document.getElementById('score').textContent = 0;
+  document.getElementById('level').textContent = 1;
+  document.getElementById('lines').textContent = 0;
+  document.getElementById('msg').style.display = 'none';
+  updatePowerDisplay();
+  next = randomPiece();
+  spawnPiece();
+}
+
+function randomPiece() {
+  const i = Math.floor(Math.random() * SHAPES.length);
+  return { shape: SHAPES[i], color: COLORS[i], name: NAMES[i] };
+}
+
+function spawnPiece() {
+  current = {
+    shape: next.shape,
+    color: next.color,
+    name: next.name,
+    x: Math.floor(COLS/2) - Math.floor(next.shape[0].length/2),
+    y: 0
+  };
+  next = randomPiece();
+  drawNext();
+  if (!isValid(current.shape, current.x, current.y)) {
+    gameOver = true;
+    showMsg('GAME OVER\nR para reiniciar', '#f00');
+  }
+}
+
+function isValid(shape, ox, oy) {
+  for (let r = 0; r < shape.length; r++) {
+    for (let c = 0; c < shape[r].length; c++) {
+      if (!shape[r][c]) continue;
+      const nx = ox + c, ny = oy + r;
+      if (nx < 0 || nx >= COLS || ny >= ROWS) return false;
+      if (ny >= 0 && board[ny][nx]) return false;
+    }
+  }
+  return true;
+}
+
+function rotate(shape) {
+  return shape[0].map((_, i) => shape.map(row => row[i]).reverse());
+}
+
+function lock() {
+  for (let r = 0; r < current.shape.length; r++) {
+    for (let c = 0; c < current.shape[r].length; c++) {
+      if (!current.shape[r][c]) continue;
+      const ny = current.y + r;
+      if (ny < 0) { gameOver = true; showMsg('GAME OVER\nR para reiniciar','#f00'); return; }
+      board[ny][current.x + c] = current.color;
+    }
+  }
+  clearLines();
+  spawnPiece();
+}
+
+function clearLines() {
+  let cleared = 0;
+  const newBoard = [];
+  for (let r = 0; r < ROWS; r++) {
+    if (board[r].every(c => c !== 0)) { cleared++; }
+    else newBoard.push(board[r]);
+  }
+  while (newBoard.length < ROWS) newBoard.unshift(Array(COLS).fill(0));
+  board = newBoard;
+
+  if (cleared > 0) {
+    const multi = doubleTimer > 0 ? 2 : 1;
+    const pts = [0,100,300,500,800][cleared] * level * multi;
+    score += pts;
+    lines += cleared;
+    level = Math.floor(lines / 10) + 1;
+    dropInterval = Math.max(100, 800 - (level-1)*70);
+    document.getElementById('score').textContent = score;
+    document.getElementById('level').textContent = level;
+    document.getElementById('lines').textContent = lines;
+
+    const label = cleared === 4 ? '🎉 TETRIS! +'+pts : cleared+'L +'+pts;
+    floatTexts.push({text: label, x: 150, y: 300, life: 60, color: cleared===4?'#ff0':'#0f0'});
+
+    // Drop power-up on clear (25% chance per 2+ lines)
+    if (cleared >= 2 && Math.random() < 0.35) dropPower();
+    if (cleared === 4 && Math.random() < 0.7) dropPower();
+  }
+}
+
+function dropPower() {
+  const types = ['slow','bomb','ghost','bonus','freeze','double'];
+  const t = types[Math.floor(Math.random()*types.length)];
+  const x = Math.floor(Math.random()*COLS)*BS + BS/2;
+  powerDrops.push({ x, y: 0, type: t, vy: 1.5 });
+}
+
+const POWER_ICONS = { slow:'⚡', bomb:'💣', ghost:'🔮', bonus:'✨', freeze:'🧊', double:'⭐' };
+const POWER_NAMES = { slow:'Caída lenta', bomb:'Bomba fila', ghost:'Elige pieza', bonus:'Línea bonus', freeze:'Congelar', double:'Puntos x2' };
+
+function applyPower(type, x, y) {
+  floatTexts.push({text: POWER_ICONS[type]+' '+POWER_NAMES[type], x, y, life:70, color:'#fa0'});
+  if (type === 'slow')   { slowTimer = 600; }
+  if (type === 'bomb')   {
+    // Clear bottom-most occupied row
+    for (let r = ROWS-1; r >= 0; r--) {
+      if (board[r].some(c=>c!==0)) { board[r]=Array(COLS).fill(0); break; }
+    }
+    floatTexts.push({text:'💣 FILA ELIMINADA', x:150, y:200, life:60, color:'#f80'});
+  }
+  if (type === 'ghost')  { next = randomPiece(); drawNext(); } // reroll next piece
+  if (type === 'bonus')  { // add full clear row at bottom
+    board.shift(); board.push(Array(COLS).fill('#555'));
+    // now clear it immediately
+    setTimeout(()=>{ board[ROWS-1]=Array(COLS).fill(0); score+=50*level;
+      document.getElementById('score').textContent=score; },200);
+  }
+  if (type === 'freeze') { freezeTimer = 300; }
+  if (type === 'double') { doubleTimer = 400; }
+  updatePowerDisplay();
+}
+
+function updatePowerDisplay() {
+  const parts = [];
+  if (slowTimer > 0)   parts.push('⚡ Caída lenta');
+  if (freezeTimer > 0) parts.push('🧊 Congelado');
+  if (doubleTimer > 0) parts.push('⭐ Puntos x2');
+  document.getElementById('powerlist').textContent = parts.join('\n') || '—';
+}
+
+// --- INPUT ---
+const keys = {};
+let dasTimer = 0, dasDir = 0;
+
+document.addEventListener('keydown', e => {
+  if (e.code === 'ArrowLeft' || e.code === 'ArrowRight' ||
+      e.code === 'ArrowDown' || e.code === 'ArrowUp' || e.code === 'Space') {
+    e.preventDefault();
+  }
+  if (gameOver && e.code === 'KeyR') { init(); return; }
+  if (e.code === 'KeyP') { paused = !paused; return; }
+  if (paused || gameOver) return;
+
+  if (e.code === 'ArrowLeft')  { movePiece(-1); dasDir = -1; dasTimer = 0; }
+  if (e.code === 'ArrowRight') { movePiece(1);  dasDir =  1; dasTimer = 0; }
+  if (e.code === 'ArrowUp')    { tryRotate(); }
+  if (e.code === 'ArrowDown')  { if(isValid(current.shape,current.x,current.y+1)) current.y++; }
+  if (e.code === 'Space')      { hardDrop(); }
+  keys[e.code] = true;
+});
+document.addEventListener('keyup', e => {
+  keys[e.code] = false;
+  if (e.code === 'ArrowLeft' || e.code === 'ArrowRight') dasDir = 0;
+});
+
+function movePiece(dir) {
+  if (isValid(current.shape, current.x+dir, current.y)) current.x += dir;
+}
+
+function tryRotate() {
+  const r = rotate(current.shape);
+  if (isValid(r, current.x, current.y)) { current.shape = r; return; }
+  if (isValid(r, current.x-1, current.y)) { current.shape = r; current.x--; return; }
+  if (isValid(r, current.x+1, current.y)) { current.shape = r; current.x++; return; }
+}
+
+function hardDrop() {
+  let dy = 0;
+  while (isValid(current.shape, current.x, current.y+dy+1)) dy++;
+  current.y += dy;
+  score += dy * 2;
+  document.getElementById('score').textContent = score;
+  lock();
+}
+
+// --- DRAW ---
+function drawBlock(x, y, color, alpha) {
+  if (y < 0) return;
+  ctx.globalAlpha = alpha || 1;
+  ctx.fillStyle = color;
+  ctx.fillRect(x*BS+1, y*BS+1, BS-2, BS-2);
+  // Shine
+  ctx.fillStyle = 'rgba(255,255,255,0.15)';
+  ctx.fillRect(x*BS+1, y*BS+1, BS-2, 6);
+  ctx.globalAlpha = 1;
+}
+
+function drawBoard() {
+  ctx.fillStyle = '#111';
+  ctx.fillRect(0, 0, COLS*BS, ROWS*BS);
+  // Grid
+  ctx.strokeStyle = '#1a1a1a';
+  ctx.lineWidth = 0.5;
+  for (let r = 0; r < ROWS; r++) {
+    ctx.beginPath(); ctx.moveTo(0, r*BS); ctx.lineTo(COLS*BS, r*BS); ctx.stroke();
+  }
+  for (let c = 0; c <= COLS; c++) {
+    ctx.beginPath(); ctx.moveTo(c*BS, 0); ctx.lineTo(c*BS, ROWS*BS); ctx.stroke();
+  }
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (board[r][c]) drawBlock(c, r, board[r][c]);
+    }
+  }
+}
+
+function drawGhost() {
+  let dy = 0;
+  while (isValid(current.shape, current.x, current.y+dy+1)) dy++;
+  for (let r = 0; r < current.shape.length; r++) {
+    for (let c = 0; c < current.shape[r].length; c++) {
+      if (!current.shape[r][c]) continue;
+      drawBlock(current.x+c, current.y+dy+r, current.color, 0.15);
+    }
+  }
+}
+
+function drawCurrent() {
+  for (let r = 0; r < current.shape.length; r++) {
+    for (let c = 0; c < current.shape[r].length; c++) {
+      if (!current.shape[r][c]) continue;
+      drawBlock(current.x+c, current.y+r, current.color);
+    }
+  }
+}
+
+function drawNext() {
+  nctx.fillStyle = '#111';
+  nctx.fillRect(0,0,80,80);
+  const s = next.shape;
+  const ox = Math.floor((4-s[0].length)/2);
+  const oy = Math.floor((4-s.length)/2);
+  for (let r = 0; r < s.length; r++) {
+    for (let c = 0; c < s[r].length; c++) {
+      if (!s[r][c]) continue;
+      nctx.fillStyle = next.color;
+      nctx.fillRect((ox+c)*20+1,(oy+r)*20+1,18,18);
+      nctx.fillStyle='rgba(255,255,255,0.15)';
+      nctx.fillRect((ox+c)*20+1,(oy+r)*20+1,18,5);
+    }
+  }
+}
+
+function drawPowerDrops() {
+  for (let d of powerDrops) {
+    ctx.font = '20px serif';
+    ctx.textAlign = 'center';
+    ctx.globalAlpha = 0.95;
+    // Glow
+    ctx.shadowColor = '#ff0';
+    ctx.shadowBlur = 10;
+    ctx.fillText(POWER_ICONS[d.type], d.x, d.y);
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
+    ctx.textAlign = 'left';
+  }
+}
+
+function drawFloats() {
+  for (let ft of floatTexts) {
+    ctx.globalAlpha = ft.life/60;
+    ctx.fillStyle = ft.color;
+    ctx.font = 'bold 15px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(ft.text, ft.x, ft.y);
+    ctx.globalAlpha = 1;
+    ctx.textAlign = 'left';
+  }
+}
+
+// --- MAIN LOOP ---
+let last = 0;
+function loop(ts) {
+  const dt = ts - last; last = ts;
+  if (!paused && !gameOver) {
+    update(dt);
+  }
+  draw();
+  requestAnimationFrame(loop);
+}
+
+function update(dt) {
+  // Timers
+  if (slowTimer > 0)   { slowTimer--;   updatePowerDisplay(); }
+  if (freezeTimer > 0) { freezeTimer--; updatePowerDisplay(); }
+  if (doubleTimer > 0) { doubleTimer--; updatePowerDisplay(); }
+
+  // DAS (delayed auto-shift)
+  if (dasDir !== 0) {
+    dasTimer += dt;
+    if (dasTimer > 150) { movePiece(dasDir); dasTimer = 120; }
+  }
+
+  // Power drops falling
+  powerDrops = powerDrops.filter(d => {
+    if (freezeTimer === 0) d.y += d.vy;
+    // Collect if overlaps current piece footprint
+    const bx = Math.floor(d.x / BS);
+    const by = Math.floor(d.y / BS);
+    for (let r = 0; r < current.shape.length; r++) {
+      for (let c = 0; c < current.shape[r].length; c++) {
+        if (!current.shape[r][c]) continue;
+        if (current.x+c === bx && current.y+r === by) {
+          applyPower(d.type, d.x, d.y);
+          return false;
+        }
+      }
+    }
+    // Also collect if piece lands on it
+    if (by >= ROWS) return false;
+    if (board[by] && board[by][bx]) { applyPower(d.type, d.x, d.y); return false; }
+    return d.y < ROWS*BS + 30;
+  });
+
+  // Float texts
+  floatTexts = floatTexts.filter(ft => { ft.y -= 0.5; ft.life--; return ft.life > 0; });
+
+  // Drop piece
+  if (freezeTimer === 0) {
+    const interval = slowTimer > 0 ? dropInterval * 2.5 : dropInterval;
+    dropTimer += dt;
+    if (dropTimer >= interval) {
+      dropTimer = 0;
+      if (isValid(current.shape, current.x, current.y+1)) {
+        current.y++;
+      } else {
+        lock();
+      }
+    }
+  }
+}
+
+function draw() {
+  drawBoard();
+  if (current) { drawGhost(); drawCurrent(); }
+  drawPowerDrops();
+  drawFloats();
+
+  // Power glow borders
+  if (slowTimer > 0) { ctx.strokeStyle='rgba(255,220,0,0.4)'; ctx.lineWidth=3; ctx.strokeRect(1,1,COLS*BS-2,ROWS*BS-2); }
+  if (freezeTimer > 0) { ctx.strokeStyle='rgba(0,200,255,0.5)'; ctx.lineWidth=3; ctx.strokeRect(1,1,COLS*BS-2,ROWS*BS-2); }
+  if (doubleTimer > 0) { ctx.strokeStyle='rgba(200,100,255,0.4)'; ctx.lineWidth=3; ctx.strokeRect(1,1,COLS*BS-2,ROWS*BS-2); }
+
+  if (paused && !gameOver) {
+    ctx.fillStyle = 'rgba(0,0,0,0.65)';
+    ctx.fillRect(0,0,COLS*BS,ROWS*BS);
+    ctx.fillStyle='#ff0'; ctx.font='28px monospace'; ctx.textAlign='center';
+    ctx.fillText('PAUSA', COLS*BS/2, ROWS*BS/2);
+    ctx.textAlign='left';
+  }
+}
+
+function showMsg(text, color) {
+  const el = document.getElementById('msg');
+  el.innerHTML = text.replace('\n','<br>');
+  el.style.color = color;
+  el.style.display = 'block';
+}
+
+init();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

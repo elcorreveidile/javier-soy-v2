@@ -11,6 +11,7 @@ const NAV_LINKS = [
   { href: '/blog',      label: 'Blog' },
   { href: '/archivo',   label: 'Archivo' },
   { href: '/activismo', label: 'Activismo' },
+  { href: '/juegos',    label: '👾 Juegos' },
 ];
 
 export function Navbar() {
